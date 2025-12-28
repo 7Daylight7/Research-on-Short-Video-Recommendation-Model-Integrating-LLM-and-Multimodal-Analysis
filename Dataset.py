@@ -22,29 +22,32 @@ def data_load(dataset, has_v=True, has_a=True, has_t=True):
         v_feat = np.load(dir_str+'/FeatureVideo_normal.npy', allow_pickle=True) if has_v else None
         a_feat = np.load(dir_str+'/FeatureAudio_avg_normal.npy', allow_pickle=True) if has_a else None
         t_feat = np.load(dir_str+'/FeatureText_stl_normal.npy', allow_pickle=True) if has_t else None
-        v_feat = torch.tensor(v_feat, dtype=torch.float) if has_v else None
-        a_feat = torch.tensor(a_feat, dtype=torch.float) if has_a else None
-        t_feat = torch.tensor(t_feat, dtype=torch.float) if has_t else None
         if USE_CUDA:
-            v_feat = v_feat.cuda() if has_v else None
-            a_feat = a_feat.cuda() if has_a else None
-            t_feat = t_feat.cuda() if has_t else None
+            v_feat = torch.tensor(v_feat, dtype=torch.float).cuda() if has_v else None
+            a_feat = torch.tensor(a_feat, dtype=torch.float).cuda() if has_a else None
+            t_feat = torch.tensor(t_feat, dtype=torch.float).cuda() if has_t else None
+        else:
+            v_feat = torch.tensor(v_feat, dtype=torch.float) if has_v else None
+            a_feat = torch.tensor(a_feat, dtype=torch.float) if has_a else None
+            t_feat = torch.tensor(t_feat, dtype=torch.float) if has_t else None
     elif dataset == 'tiktok':
         num_user = 100
         num_item = 1651
         if has_v:
             v_feat = torch.load(dir_str+'/v_feat_sample.pt')
-            v_feat = torch.tensor(v_feat, dtype=torch.float)
             if USE_CUDA:
-                v_feat = v_feat.cuda()
+                v_feat = torch.tensor(v_feat, dtype=torch.float).cuda()
+            else:
+                v_feat = torch.tensor(v_feat, dtype=torch.float)
         else:
             v_feat = None
 
         if has_a:
             a_feat = torch.load(dir_str+'/a_feat_sample.pt')
-            a_feat = torch.tensor(a_feat, dtype=torch.float)
             if USE_CUDA:
-                a_feat = a_feat.cuda()
+                a_feat = torch.tensor(a_feat, dtype=torch.float).cuda()
+            else:
+                a_feat = torch.tensor(a_feat, dtype=torch.float)
         else:
             a_feat = None
         
@@ -53,9 +56,10 @@ def data_load(dataset, has_v=True, has_a=True, has_t=True):
         num_user = 7010
         num_item = 86483
         v_feat = torch.load(dir_str+'/feat_v.pt')
-        v_feat = torch.tensor(v_feat, dtype=torch.float)
         if USE_CUDA:
-            v_feat = v_feat.cuda()
+            v_feat = torch.tensor(v_feat, dtype=torch.float).cuda()
+        else:
+            v_feat = torch.tensor(v_feat, dtype=torch.float)
         a_feat = t_feat = None
 
     return num_user, num_item, train_edge, user_item_dict, v_feat, a_feat, t_feat

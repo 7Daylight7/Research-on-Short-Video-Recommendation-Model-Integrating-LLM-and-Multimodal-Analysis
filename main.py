@@ -72,14 +72,14 @@ if __name__ == '__main__':
 
     num_user, num_item, train_edge, user_item_dict, v_feat, a_feat, t_feat = data_load(data_path)
 
-    v_feat = torch.tensor(v_feat, dtype=torch.float) if has_v else None
-    a_feat = torch.tensor(a_feat, dtype=torch.float) if has_a else None
-    t_feat = torch.tensor(t_feat, dtype=torch.float) if has_t else None
     if config.USE_CUDA:
-        v_feat = v_feat.cuda() if has_v else None
-        a_feat = a_feat.cuda() if has_a else None
-        t_feat = t_feat.cuda() if has_t else None
-
+        v_feat = torch.tensor(v_feat, dtype=torch.float).cuda() if has_v else None
+        a_feat = torch.tensor(a_feat, dtype=torch.float).cuda() if has_a else None
+        t_feat = torch.tensor(t_feat, dtype=torch.float).cuda() if has_t else None
+    else:
+        v_feat = torch.tensor(v_feat, dtype=torch.float) if has_v else None
+        a_feat = torch.tensor(a_feat, dtype=torch.float) if has_a else None
+        t_feat = torch.tensor(t_feat, dtype=torch.float) if has_t else None
 
     train_dataset = TrainingDataset(num_user, num_item, user_item_dict, train_edge)
     train_dataloader = DataLoader(train_dataset, batch_size, shuffle=True, num_workers=num_workers)
@@ -88,9 +88,10 @@ if __name__ == '__main__':
     test_data = np.load('./Data/'+data_path+'/test_sample.npy', allow_pickle=True)
     print('Data has been loaded.')
     ##########################################################################################################################################
-    model = Net(v_feat, a_feat, t_feat, None, train_edge, batch_size, num_user, num_item, 'mean', 'False', 2, True, user_item_dict, weight_decay, dim_E)
     if config.USE_CUDA:
-        model = model.cuda()
+        model = Net(v_feat, a_feat, t_feat, None, train_edge, batch_size, num_user, num_item, 'mean', 'False', 2, True,user_item_dict, weight_decay, dim_E).cuda()
+    else:
+        model = Net(v_feat, a_feat, t_feat, None, train_edge, batch_size, num_user, num_item, 'mean', 'False', 2, True,user_item_dict, weight_decay, dim_E)
     ##########################################################################################################################################
     optimizer = torch.optim.Adam([{'params': model.parameters(), 'lr': learning_rate}])
     ##########################################################################################################################################
