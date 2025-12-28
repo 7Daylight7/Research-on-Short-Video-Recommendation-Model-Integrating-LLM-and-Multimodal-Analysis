@@ -114,21 +114,20 @@ class GCN(torch.nn.Module):
         x = F.normalize(x).cuda()
 
         # 第一层图卷积
-        # 聚合邻居信息
-        h = F.leaky_relu(self.conv_embed_1(x, self.edge_index))  # equation 1
+        h = F.leaky_relu(self.conv_embed_1(x, self.edge_index))
         # 原始特征的线性变换，并可选地添加ID嵌入
-        x_hat = F.leaky_relu(self.linear_layer1(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer1(x))  # equation 5
+        x_hat = F.leaky_relu(self.linear_layer1(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer1(x))
         # 融合聚合特征和变换后的原始特征
         x = F.leaky_relu(self.g_layer1(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer1(h)+x_hat)
 
         # 第二层图卷积（与第一层类似）
-        h = F.leaky_relu(self.conv_embed_2(x, self.edge_index))  # equation 1
-        x_hat = F.leaky_relu(self.linear_layer2(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer2(x))  # equation 5
+        h = F.leaky_relu(self.conv_embed_2(x, self.edge_index))
+        x_hat = F.leaky_relu(self.linear_layer2(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer2(x))
         x = F.leaky_relu(self.g_layer2(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer2(h)+x_hat)
 
         # 第三层图卷积（与前两层类似）
-        h = F.leaky_relu(self.conv_embed_3(x, self.edge_index))  # equation 1
-        x_hat = F.leaky_relu(self.linear_layer3(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer3(x))#equation 5
+        h = F.leaky_relu(self.conv_embed_3(x, self.edge_index))
+        x_hat = F.leaky_relu(self.linear_layer3(x)) + id_embedding if self.has_id else F.leaky_relu(self.linear_layer3(x))
         x = F.leaky_relu(self.g_layer3(torch.cat((h, x_hat), dim=1))) if self.concate else F.leaky_relu(self.g_layer3(h)+x_hat)
 
         return x
@@ -173,11 +172,10 @@ class Net(torch.nn.Module):
         # 构建无向图（用户-物品和物品-用户）
         self.edge_index = torch.tensor(edge_index).t().contiguous().cuda()
         self.edge_index = torch.cat((self.edge_index, self.edge_index[[1,0]]), dim=1)
-        self.num_modal = 0
 
         # 初始化视觉GCN模块
         self.v_feat = torch.tensor(v_feat,dtype=torch.float).cuda()
-        self.v_gcn = GCN(self.edge_index, batch_size, num_user, num_item, self.v_feat.size(1), dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id, dim_latent=256)
+        self.v_gcn = GCN(self.edge_index, batch_size, num_user, num_item, self.v_feat.size(1), dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id, dim_latent=128)
 
         # 初始化声学GCN模块
         self.a_feat = torch.tensor(a_feat,dtype=torch.float).cuda()
@@ -186,12 +184,6 @@ class Net(torch.nn.Module):
         # 初始化文本GCN模块
         self.t_feat = torch.tensor(t_feat,dtype=torch.float).cuda()
         self.t_gcn = GCN(self.edge_index, batch_size, num_user, num_item, self.t_feat.size(1), dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id)
-
-        #  文本特征的另一种实现方式（使用词嵌入，当前未使用）
-        # self.words_tensor = torch.tensor(words_tensor, dtype=torch.long).cuda()
-        # self.word_embedding = nn.Embedding(torch.max(self.words_tensor[1])+1, 128)
-        # nn.init.xavier_normal_(self.word_embedding.weight) 
-        # self.t_gcn = GCN(self.edge_index, batch_size, num_user, num_item, 128, dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id)
 
         # 初始化用户和物品的ID嵌入
         self.id_embedding = nn.init.xavier_normal_(torch.rand((num_user+num_item, dim_x), requires_grad=True)).cuda()
@@ -209,9 +201,6 @@ class Net(torch.nn.Module):
         # 通过三个模态的GCN获取各自的表示
         v_rep = self.v_gcn(self.v_feat, self.id_embedding)
         a_rep = self.a_gcn(self.a_feat, self.id_embedding)
-
-        #  文本特征的另一种处理方式（当前未使用）
-        #  self.t_feat = torch.tensor(scatter_('mean', self.word_embedding(self.words_tensor[1]), self.words_tensor[0])).cuda()
         t_rep = self.t_gcn(self.t_feat, self.id_embedding)
 
         # 简单平均融合三个模态的表示
@@ -254,7 +243,7 @@ class Net(torch.nn.Module):
         # 总损失
         total_loss = bpr_loss + reg_loss
 
-        return total_loss, bpr_loss, reg_loss, reg_embedding_loss, reg_embedding_loss
+        return total_loss, bpr_loss, reg_loss
 
     def accuracy(self, step=2000, topk=10):
         """
