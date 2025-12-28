@@ -42,12 +42,12 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', type=float, default=1e-5, help='Weight decay.')
 
     # 训练参数
-    parser.add_argument('--batch_size', type=int, default=1024, help='Batch size.')
+    parser.add_argument('--batch_size', type=int, default=32, help='Batch size.')
     parser.add_argument('--num_epoch', type=int, default=1000, help='Epoch number.')
     parser.add_argument('--num_workers', type=int, default=1, help='Workers number.')
 
     # 模型参数
-    parser.add_argument('--dim_E', type=int, default=64, help='Embedding dimension.')
+    parser.add_argument('--dim_E', type=int, default=128, help='Embedding dimension.')
     parser.add_argument('--prefix', default='', help='Prefix of save_file.')
     parser.add_argument('--aggr_mode', default='add', help='Aggregation Mode.')
     parser.add_argument('--topK', type=int, default=10, help='Workers number.')
@@ -122,7 +122,7 @@ if __name__ == '__main__':
     # user_item_dict: 用户-物品映射字典
     # weight_decay: 权重衰减
     # dim_E: 嵌入维度
-    model = Net(v_feat, a_feat, t_feat, None, train_edge, batch_size, num_user, num_item, 'mean', False, 3, True, user_item_dict, weight_decay, dim_E).to(device)
+    model = Net(v_feat, a_feat, t_feat, None, train_edge, batch_size, num_user, num_item, 'mean', False, 3, True, user_item_dict, weight_decay, dim_E, True).to(device)
     optimizer = torch.optim.Adam([{'params': model.parameters(), 'lr': learning_rate}])
 
     # 用于记录最佳性能指标
