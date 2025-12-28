@@ -58,7 +58,7 @@ def data_load(dataset, has_v=True, has_a=True, has_t=True):
             a_feat = None
 
         if has_t:
-            t_feat = torch.load(dir_str + '/feat_tt.pt')
+            t_feat = torch.load(dir_str + '/feat_t.pt')
             t_feat = torch.tensor(t_feat, dtype=torch.float).cuda()
         else:
             t_feat = None
