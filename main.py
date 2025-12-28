@@ -27,13 +27,13 @@ if __name__ == '__main__':
     # 随机种子设置，保证实验可重复性
     parser.add_argument('--seed', type=int, default=1, help='Seed init.')
     # 是否使用CUDA进行训练
-    parser.add_argument('--no_cuda', action='store_true', default=False, help='Disables CUDA training.')
+    parser.add_argument('--no-cuda', action='store_true', default=False, help='Disables CUDA training.')
     # 选用的数据集
-    parser.add_argument('--data_path', default='Tiktok', help='Dataset path')
+    parser.add_argument('--data_path', default='movielens', help='Dataset path')
     # 保存文件名
     parser.add_argument('--save_file', default='', help='Filename')
 
-    # 模型权重加载和保存路径(未使用)
+    # 模型权重加载和保存路径
     parser.add_argument('--PATH_weight_load', default=None, help='Loading weight filename.')
     parser.add_argument('--PATH_weight_save', default=None, help='Writing weight filename.')
 
@@ -53,6 +53,8 @@ if __name__ == '__main__':
     parser.add_argument('--topK', type=int, default=10, help='Workers number.')
 
     # 模态选择参数，控制是否使用特定模态
+    parser.add_argument('--has_entropy_loss', default='False', help='Has Cross Entropy loss.')
+    parser.add_argument('--has_weight_loss', default='False', help='Has Weight Loss.')
     parser.add_argument('--has_v', default='True', help='Has Visual Features.')
     parser.add_argument('--has_a', default='True', help='Has Acoustic Features.')
     parser.add_argument('--has_t', default='True', help='Has Textual Features.')
@@ -84,6 +86,8 @@ if __name__ == '__main__':
     has_v = True if args.has_v == 'True' else False
     has_a = True if args.has_a == 'True' else False
     has_t = True if args.has_t == 'True' else False
+    has_entropy_loss = True if args.has_entropy_loss == 'True' else False
+    has_weight_loss = True if args.has_weight_loss == 'True' else False
     dim_E = args.dim_E
 
     # TensorBoard可视化器
@@ -122,7 +126,7 @@ if __name__ == '__main__':
     # user_item_dict: 用户-物品映射字典
     # weight_decay: 权重衰减
     # dim_E: 嵌入维度
-    model = Net(v_feat, a_feat, t_feat, None, train_edge, batch_size, num_user, num_item, 'mean', False, 3, True, user_item_dict, weight_decay, dim_E, True).to(device)
+    model = Net(v_feat, a_feat, t_feat, None, train_edge, batch_size, num_user, num_item, 'mean', False, 2, True, user_item_dict, weight_decay, dim_E).to(device)
     optimizer = torch.optim.Adam([{'params': model.parameters(), 'lr': learning_rate}])
 
     # 用于记录最佳性能指标

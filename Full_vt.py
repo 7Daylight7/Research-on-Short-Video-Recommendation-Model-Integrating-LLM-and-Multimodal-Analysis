@@ -51,3 +51,6 @@ def full_vt(epoch, model, data, prefix, writer=None):
             writer.add_embedding(model.t_rep)
             
         return precision, recall, ndcg_score
+
+
+
