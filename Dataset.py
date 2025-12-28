@@ -87,7 +87,7 @@ class TrainingDataset(Dataset):
         self.num_user = num_user
         self.num_item = num_item
         self.user_item_dict = user_item_dict
-        self.all_items = list(range(num_user, num_user+num_item))  # 创建全部物品的集合
+        self.all_set = set(range(num_user, num_user+num_item))  # 创建全部物品的集合
 
     def __len__(self):
         return len(self.edge_index)
@@ -97,7 +97,7 @@ class TrainingDataset(Dataset):
         user, pos_item = self.edge_index[index]
         # 随机采样负样本(用户未交互的物品)
         while True:
-            neg_item = random.sample(self.all_items, 1)[0]  # 从所有物品中随机采样
+            neg_item = random.sample(self.all_set, 1)[0]  # 从所有物品中随机采样
             if neg_item not in self.user_item_dict[user]:  # 确保不是用户已交互的物品
                 break
         return torch.LongTensor([user,user]), torch.LongTensor([pos_item, neg_item])
