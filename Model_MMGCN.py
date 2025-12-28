@@ -7,7 +7,7 @@ from torch.nn import Parameter
 from BaseModel import BaseModel
 from torch_geometric.utils import scatter
 
-from config.config import USE_CUDA
+from config import config
 
 
 class GCN(torch.nn.Module):
@@ -26,7 +26,7 @@ class GCN(torch.nn.Module):
         self.has_id = has_id
 
         if self.dim_latent:
-            if USE_CUDA:
+            if config.USE_CUDA:
                 self.preference = nn.init.xavier_normal_(torch.rand((num_user, self.dim_latent), requires_grad=True)).cuda()
             else:
                 self.preference = nn.init.xavier_normal_(torch.rand((num_user, self.dim_latent), requires_grad=True))
@@ -39,7 +39,7 @@ class GCN(torch.nn.Module):
             nn.init.xavier_normal_(self.g_layer1.weight) 
 
         else:
-            if USE_CUDA:
+            if config.USE_CUDA:
                 self.preference = nn.init.xavier_normal_(torch.rand((num_user, self.dim_feat), requires_grad=True)).cuda()
             else:
                 self.preference = nn.init.xavier_normal_(torch.rand((num_user, self.dim_feat), requires_grad=True))
@@ -66,7 +66,7 @@ class GCN(torch.nn.Module):
         temp_features = self.MLP(features) if self.dim_latent else features
 
         x = torch.cat((self.preference, temp_features),dim=0)
-        if USE_CUDA:
+        if config.USE_CUDA:
             x = F.normalize(x).cuda()
         else:
             x = F.normalize(x)
@@ -94,34 +94,34 @@ class Net(torch.nn.Module):
         self.aggr_mode = aggr_mode
         self.concate = concate
         self.user_item_dict = user_item_dict
-        if USE_CUDA:
+        if config.USE_CUDA:
             self.weight = torch.tensor([[1.0], [-1.0]]).cuda()
         else:
             self.weight = torch.tensor([[1.0], [-1.0]])
 
         self.reg_weight = reg_weight
-        
-        if USE_CUDA:
+
+        if config.USE_CUDA:
             self.edge_index = torch.tensor(edge_index).t().contiguous().cuda()
         else:
             self.edge_index = torch.tensor(edge_index).t().contiguous()
         self.edge_index = torch.cat((self.edge_index, self.edge_index[[1,0]]), dim=1)
         self.num_modal = 0
 
-        if USE_CUDA:
+        if config.USE_CUDA:
             self.v_feat = torch.tensor(v_feat, dtype=torch.float).cuda()
         else:
             self.v_feat = torch.tensor(v_feat, dtype=torch.float)
 
         self.v_gcn = GCN(self.edge_index, batch_size, num_user, num_item, self.v_feat.size(1), dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id, dim_latent=256)
 
-        if USE_CUDA:
+        if config.USE_CUDA:
             self.a_feat = torch.tensor(a_feat, dtype=torch.float).cuda()
         else:
             self.a_feat = torch.tensor(a_feat, dtype=torch.float)
         self.a_gcn = GCN(self.edge_index, batch_size, num_user, num_item, self.a_feat.size(1), dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id)
 
-        if USE_CUDA:
+        if config.USE_CUDA:
             self.t_feat =torch.tensor(t_feat, dtype=torch.float).cuda()
         else:
             self.t_feat = torch.tensor(t_feat, dtype=torch.float)
@@ -133,12 +133,12 @@ class Net(torch.nn.Module):
         # nn.init.xavier_normal_(self.word_embedding.weight) 
         # self.t_gcn = GCN(self.edge_index, batch_size, num_user, num_item, 128, dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id)
 
-        if USE_CUDA:
+        if config.USE_CUDA:
             self.id_embedding = nn.init.xavier_normal_(torch.rand((num_user + num_item, dim_x), requires_grad=True)).cuda()
         else:
             self.id_embedding = nn.init.xavier_normal_(torch.rand((num_user + num_item, dim_x), requires_grad=True))
 
-        if USE_CUDA:
+        if config.USE_CUDA:
             self.result = nn.init.xavier_normal_(torch.rand((num_user + num_item, dim_x))).cuda()
         else:
             self.result = nn.init.xavier_normal_(torch.rand((num_user + num_item, dim_x)))

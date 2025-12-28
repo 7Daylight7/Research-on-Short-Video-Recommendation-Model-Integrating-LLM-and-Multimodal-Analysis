@@ -8,7 +8,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 
-from config.config import USE_CUDA
+from config import config
 
 
 def data_load(dataset, has_v=True, has_a=True, has_t=True):
@@ -22,7 +22,7 @@ def data_load(dataset, has_v=True, has_a=True, has_t=True):
         v_feat = np.load(dir_str+'/FeatureVideo_normal.npy', allow_pickle=True) if has_v else None
         a_feat = np.load(dir_str+'/FeatureAudio_avg_normal.npy', allow_pickle=True) if has_a else None
         t_feat = np.load(dir_str+'/FeatureText_stl_normal.npy', allow_pickle=True) if has_t else None
-        if USE_CUDA:
+        if config.USE_CUDA:
             v_feat = torch.tensor(v_feat, dtype=torch.float).cuda() if has_v else None
             a_feat = torch.tensor(a_feat, dtype=torch.float).cuda() if has_a else None
             t_feat = torch.tensor(t_feat, dtype=torch.float).cuda() if has_t else None
@@ -35,7 +35,7 @@ def data_load(dataset, has_v=True, has_a=True, has_t=True):
         num_item = 1651
         if has_v:
             v_feat = torch.load(dir_str+'/v_feat_sample.pt')
-            if USE_CUDA:
+            if config.USE_CUDA:
                 v_feat = torch.tensor(v_feat, dtype=torch.float).cuda()
             else:
                 v_feat = torch.tensor(v_feat, dtype=torch.float)
@@ -44,7 +44,7 @@ def data_load(dataset, has_v=True, has_a=True, has_t=True):
 
         if has_a:
             a_feat = torch.load(dir_str+'/a_feat_sample.pt')
-            if USE_CUDA:
+            if config.USE_CUDA:
                 a_feat = torch.tensor(a_feat, dtype=torch.float).cuda()
             else:
                 a_feat = torch.tensor(a_feat, dtype=torch.float)
@@ -56,7 +56,7 @@ def data_load(dataset, has_v=True, has_a=True, has_t=True):
         num_user = 7010
         num_item = 86483
         v_feat = torch.load(dir_str+'/feat_v.pt')
-        if USE_CUDA:
+        if config.USE_CUDA:
             v_feat = torch.tensor(v_feat, dtype=torch.float).cuda()
         else:
             v_feat = torch.tensor(v_feat, dtype=torch.float)

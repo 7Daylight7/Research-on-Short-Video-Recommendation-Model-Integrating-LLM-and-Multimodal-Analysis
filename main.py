@@ -15,7 +15,7 @@ from config import config
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--seed', type=int, default=1, help='Seed init.')
-    parser.add_argument('--no-cuda', action='store_true', default=True, help='Disables CUDA training.')
+    parser.add_argument('--no_cuda', action='store_true', default=True, help='Disables CUDA training.')
     parser.add_argument('--data_path', default='tiktok', help='Dataset path')
     parser.add_argument('--save_file', default='', help='Filename')
 
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     config.USE_CUDA = not args.no_cuda and torch.cuda.is_available()
     seed = args.seed
     np.random.seed(seed)
-    device = torch.device("cuda:0" if torch.cuda.is_available() and not args.no_cuda else "cpu")
+    # device = torch.device("cuda:0" if torch.cuda.is_available() and not args.no_cuda else "cpu")
     ##########################################################################################################################################
     data_path = args.data_path
     save_file = args.save_file
@@ -71,7 +71,6 @@ if __name__ == '__main__':
     print('Data loading ...')
 
     num_user, num_item, train_edge, user_item_dict, v_feat, a_feat, t_feat = data_load(data_path)
-
     if config.USE_CUDA:
         v_feat = torch.tensor(v_feat, dtype=torch.float).cuda() if has_v else None
         a_feat = torch.tensor(a_feat, dtype=torch.float).cuda() if has_a else None
