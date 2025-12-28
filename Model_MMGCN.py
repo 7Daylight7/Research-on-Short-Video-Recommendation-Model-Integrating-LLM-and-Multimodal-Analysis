@@ -11,7 +11,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn import Parameter
 from BaseModel import BaseModel  # 基础消息传递模型
 from torch_geometric.utils import scatter  # 图数据聚合工具
 
@@ -23,7 +22,7 @@ class GCN(torch.nn.Module):
     该类实现了一个多层的图卷积网络，用于在用户-物品交互图上进行信息传播和特征学习。
     每个GCN模块处理一种模态的特征信息。
     """
-    def __init__(self, edge_index, batch_size, num_user, num_item, dim_feat, dim_id, aggr_mode, concate, num_layer, has_id, dim_latent=None):
+    def __init__(self, edge_index, batch_size, num_user, num_item, dim_feat, dim_id, aggr_mode, concate, num_layer, has_id, dim_latent=None, use_erm=True):
         """
         初始化GCN模块
 
@@ -52,6 +51,13 @@ class GCN(torch.nn.Module):
         self.concate = concate
         self.num_layer = num_layer  # 目前未使用，默认为3层
         self.has_id = has_id
+        self.use_erm = use_erm
+        # ERM模块
+        if self.use_erm:
+            self.W_erm = nn.Parameter(torch.randn(1, self.dim_feat))
+            self.b_erm = nn.Parameter(torch.randn(1))
+            nn.init.xavier_normal_(self.W_erm)
+            nn.init.zeros_(self.b_erm)
 
         # 根据是否有潜在空间维度选择不同的初始化方式(原始高维特征投影至设定D维空间)
         if self.dim_latent:
@@ -105,11 +111,15 @@ class GCN(torch.nn.Module):
         返回：
         - x: 经过多层图卷积后的节点表示
         """
+        if self.use_erm:
+            gate = F.relu(torch.matmul(features, self.W_erm.t()) + self.b_erm)
+            features = features * gate  # [num_items, dim_feat]
+
         # 如果定义了潜在维度，则对特征进行降维
-        temp_features = self.MLP(features) if self.dim_latent else features
+        features = self.MLP(features) if self.dim_latent else features
 
         # 拼接用户偏好和物品特征
-        x = torch.cat((self.preference, temp_features),dim=0)
+        x = torch.cat((self.preference, features),dim=0)
         # 特征归一化
         x = F.normalize(x).cuda()
 
@@ -137,7 +147,7 @@ class Net(torch.nn.Module):
     """
     MMGCN主网络类
     """
-    def __init__(self, v_feat, a_feat, t_feat, words_tensor, edge_index, batch_size, num_user, num_item, aggr_mode, concate, num_layer, has_id, user_item_dict, reg_weight, dim_x):
+    def __init__(self, v_feat, a_feat, t_feat, words_tensor, edge_index, batch_size, num_user, num_item, aggr_mode, concate, num_layer, has_id, user_item_dict, reg_weight, dim_x, use_erm):
         """
         初始化MMGCN主网络
 
@@ -156,7 +166,7 @@ class Net(torch.nn.Module):
         - has_id: 是否使用ID嵌入
         - user_item_dict: 用户-物品交互字典
         - reg_weight: 正则化权重
-        - dim_x: 嵌入维度
+        - dim_x: ID嵌入维度
         """
         super(Net, self).__init__()
         self.batch_size = batch_size
@@ -165,6 +175,10 @@ class Net(torch.nn.Module):
         self.aggr_mode = aggr_mode
         self.concate = concate
         self.user_item_dict = user_item_dict
+        self.use_erm = use_erm
+        self.use_ggef = True
+        self.N = self.num_user + self.num_item
+
         # 用于BPR损失计算的权重
         self.weight = torch.tensor([[1.0],[-1.0]]).cuda()
         self.reg_weight = reg_weight
@@ -175,21 +189,31 @@ class Net(torch.nn.Module):
 
         # 初始化视觉GCN模块
         self.v_feat = torch.tensor(v_feat,dtype=torch.float).cuda()
-        self.v_gcn = GCN(self.edge_index, batch_size, num_user, num_item, self.v_feat.size(1), dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id, dim_latent=128)
+        self.v_gcn = GCN(self.edge_index, batch_size, num_user, num_item, self.v_feat.size(1), dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id, dim_latent=128, use_erm=self.use_erm)
 
         # 初始化声学GCN模块
         self.a_feat = torch.tensor(a_feat,dtype=torch.float).cuda()
-        self.a_gcn = GCN(self.edge_index, batch_size, num_user, num_item, self.a_feat.size(1), dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id)
+        self.a_gcn = GCN(self.edge_index, batch_size, num_user, num_item, self.a_feat.size(1), dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id, use_erm=self.use_erm)
 
         # 初始化文本GCN模块
         self.t_feat = torch.tensor(t_feat,dtype=torch.float).cuda()
-        self.t_gcn = GCN(self.edge_index, batch_size, num_user, num_item, self.t_feat.size(1), dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id)
+        self.t_gcn = GCN(self.edge_index, batch_size, num_user, num_item, self.t_feat.size(1), dim_x, self.aggr_mode, self.concate, num_layer=num_layer, has_id=has_id, use_erm=self.use_erm)
 
         # 初始化用户和物品的ID嵌入
         self.id_embedding = nn.init.xavier_normal_(torch.rand((num_user+num_item, dim_x), requires_grad=True)).cuda()
+
+        if self.use_ggef:
+            # 全局节点数 N
+            self.W_v_ggef = nn.Parameter(torch.randn(dim_x, dim_x))
+            self.W_a_ggef = nn.Parameter(torch.randn(dim_x, dim_x))
+            self.W_t_ggef = nn.Parameter(torch.randn(dim_x, dim_x))
+
+            nn.init.xavier_normal_(self.W_v_ggef)
+            nn.init.xavier_normal_(self.W_a_ggef)
+            nn.init.xavier_normal_(self.W_t_ggef)
+
         # 存储最终表示的结果
         self.result = nn.init.xavier_normal_(torch.rand((num_user+num_item, dim_x))).cuda()
-
 
     def forward(self):
         """
@@ -203,8 +227,64 @@ class Net(torch.nn.Module):
         a_rep = self.a_gcn(self.a_feat, self.id_embedding)
         t_rep = self.t_gcn(self.t_feat, self.id_embedding)
 
-        # 简单平均融合三个模态的表示
-        representation = (v_rep+a_rep+t_rep)/3
+        if self.use_ggef:
+            # 计算全局模态信息 c^(m)
+            avg_v = torch.sum(v_rep, dim=0) / self.N
+            avg_a = torch.sum(a_rep, dim=0) / self.N
+            avg_t = torch.sum(t_rep, dim=0) / self.N
+
+            c_v = F.tanh(torch.matmul(avg_v, self.W_v_ggef))
+            c_a = F.tanh(torch.matmul(avg_a, self.W_a_ggef))
+            c_t = F.tanh(torch.matmul(avg_t, self.W_t_ggef))
+
+            # 计算全局加权聚合 h_G^(m)
+            attn_w_v = torch.sigmoid(torch.matmul(v_rep, c_v.unsqueeze(1)))  # [N, 1]
+            h_G_v = torch.sum(v_rep * attn_w_v, dim=0)  # [dim_x]
+
+            attn_w_a = torch.sigmoid(torch.matmul(a_rep, c_a.unsqueeze(1)))  # [N, 1]
+            h_G_a = torch.sum(a_rep * attn_w_a, dim=0)  # [dim_x]
+
+            attn_w_t = torch.sigmoid(torch.matmul(t_rep, c_t.unsqueeze(1)))  # [N, 1]
+            h_G_t = torch.sum(t_rep * attn_w_t, dim=0)  # [dim_x]
+
+            v_rep = v_rep + h_G_v.unsqueeze(0).expand_as(v_rep)
+            a_rep = a_rep + h_G_a.unsqueeze(0).expand_as(a_rep)
+            t_rep = t_rep + h_G_t.unsqueeze(0).expand_as(t_rep)
+
+        # 计算模态内的对比性 C_m
+        var_v = torch.sum((v_rep - c_v) ** 2, dim=0) / (self.N - 1)
+        var_a = torch.sum((a_rep - c_a) ** 2, dim=0) / (self.N - 1)
+        var_t = torch.sum((t_rep - c_t) ** 2, dim=0) / (self.N - 1)
+
+        C_v = torch.sqrt(var_v.mean())
+        C_a = torch.sqrt(var_a.mean())
+        C_t = torch.sqrt(var_t.mean())
+
+        def cosine(m1, m2):
+            return torch.dot(m1, m2) / (torch.norm(m1) * torch.norm(m2) + 1e-8)
+
+        d_va = cosine(h_G_v, h_G_a)
+        d_vt = cosine(h_G_v, h_G_t)
+        d_at = cosine(h_G_a, h_G_t)
+
+        # 归一化
+        d_e_va = (1 + d_va) / 2
+        d_e_vt = (1 + d_vt) / 2
+        d_e_at = (1 + d_at) / 2
+
+        D_v = 2 - (d_e_va + d_e_vt)
+        D_a = 2 - (d_e_va + d_e_at)
+        D_t = 2 - (d_e_vt + d_e_at)
+
+        I_v = C_v * D_v
+        I_a = C_a * D_a
+        I_t = C_t * D_t
+
+        weights = torch.tensor([I_v, I_a, I_t]).unsqueeze(0)  # [1, 3]
+        W_m = F.softmax(weights, dim=1)  # [1, 3]
+
+        representation = W_m[0][0] * v_rep + W_m[0][1] * a_rep + W_m[0][2] * t_rep
+
         # 保存结果用于后续评估
         self.result = representation
         return representation
