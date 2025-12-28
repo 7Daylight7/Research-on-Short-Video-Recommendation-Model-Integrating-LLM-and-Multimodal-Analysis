@@ -43,8 +43,8 @@ def data_load(dataset, has_v=True, has_a=True, has_t=True):
         a_feat = torch.tensor(a_feat, dtype=torch.float).cuda() if has_a else None
         t_feat = torch.tensor(t_feat, dtype=torch.float).cuda() if has_t else None
     elif dataset == 'Tiktok':
-        num_user = 100
-        num_item = 1651
+        num_user = 36656
+        num_item = 76085
         if has_v:
             v_feat = torch.load(dir_str+'/feat_v.pt')
             v_feat = torch.tensor(v_feat, dtype=torch.float).cuda()
@@ -58,7 +58,7 @@ def data_load(dataset, has_v=True, has_a=True, has_t=True):
             a_feat = None
 
         if has_t:
-            t_feat = torch.load(dir_str + '/feat_tt.pt')
+            t_feat = torch.load(dir_str + '/feat_t.pt')
             t_feat = torch.tensor(t_feat, dtype=torch.float).cuda()
         else:
             t_feat = None
